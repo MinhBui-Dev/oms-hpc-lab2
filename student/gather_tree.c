@@ -1,5 +1,91 @@
 #include <assert.h>
 #include <mpi.h>
+#include <math.h>
+#include <string.h>
+#include <stdlib.h>
+#include <stdio.h>
+
+void MSTGather(void *sendbuf, void*recvbuf, int count, MPI_Datatype datatype, int root, int rank, MPI_Comm comm, int left, int right){
+	if (left == right)
+	{
+		return;
+	}
+
+	int mid = floor((left + right) / 2);
+	int src = (root <= mid) ? right : left;
+
+	if (rank <= mid && root <= mid)
+	{
+		MSTGather(sendbuf, recvbuf, count, datatype, root, rank, comm, left, mid);
+	} else if (rank <= mid && root > mid)
+	{
+		MSTGather(sendbuf, recvbuf, count, datatype, src, rank, comm, left, mid);
+	} else if (rank > mid && root <= mid)
+	{
+		MSTGather(sendbuf, recvbuf, count, datatype, src, rank, comm, mid + 1, right);
+	} else if (rank > mid && root > mid)
+	{
+		MSTGather(sendbuf, recvbuf, count, datatype, root, rank, comm, mid + 1, right);
+	}
+	
+
+	if (root <= mid)
+	{
+		int size = (right - mid)*count;
+		if (rank == src)
+		{
+			if (size == count)
+			{
+				MPI_Send(sendbuf, size, datatype, root, 0, comm);
+				return;
+			} 
+			int* buffer_start = (int*)recvbuf + (mid + 1)*count;
+			MPI_Send(buffer_start, size, datatype, root, 0, comm);
+			
+			
+		} else if (rank == root)
+		{
+			int total_size;
+			MPI_Comm_size(comm, &total_size);
+			/* if (size == count)
+			{
+				//recvbuf = malloc(total_size * count * sizeof(int));
+				memcpy((int*)recvbuf + (left)*count, sendbuf, count*sizeof(int));
+			} */
+			int* buffer_start = (int*)recvbuf + (mid + 1)*count;
+			MPI_Recv(buffer_start, size, datatype, src, 0, comm, MPI_STATUS_IGNORE);
+		}
+		
+	} else
+	{
+		int size = (mid - left + 1)*count;
+		if (rank == src)
+		{
+			if (size == count)
+			{
+				MPI_Send(sendbuf, size, datatype, root, 0, comm);
+				return;
+			}
+			int* buffer_start = (int*)recvbuf + (left)*count;
+			MPI_Send(buffer_start, size, datatype, root, 0, comm);
+		} else if (rank == root)
+		{
+			int total_size;
+			MPI_Comm_size(comm, &total_size);
+			/* if (size == count)
+			{
+				
+				//recvbuf = malloc(total_size * count * sizeof(int));
+				//memset(recvbuf, 0, total_size * count * sizeof(int));
+				memcpy((int*)recvbuf + (mid+1)*count, sendbuf, count*sizeof(int));
+
+			} */
+			int* buffer_start = (int*)recvbuf + (left)*count;
+			MPI_Recv(buffer_start, size, datatype, src, 0, comm, MPI_STATUS_IGNORE);
+		}
+	}
+	
+}
 
 int GT_Gather(void *sendbuf, int sendcount, MPI_Datatype sendtype,
 		void *recvbuf, int recvcount, MPI_Datatype recvtype, int root,
@@ -9,6 +95,34 @@ int GT_Gather(void *sendbuf, int sendcount, MPI_Datatype sendtype,
 	assert(root == 0);
 	
 	/* Your code here (Do not just call MPI_Gather) */
+	int rank, size;
+   	MPI_Comm_rank(comm, &rank);
+   	MPI_Comm_size(comm, &size);
+
+   	int left = 0;
+   	int right = size - 1;
+
+	if (recvbuf != NULL)
+	{
+		memcpy((int*)recvbuf, sendbuf, sendcount*sizeof(int));
+	} else
+	{
+		recvbuf = malloc(size * sendcount * sizeof(int));
+		memcpy((int*)recvbuf + rank*sendcount, sendbuf, sendcount*sizeof(int));
+	}
+	
+
+	MSTGather(sendbuf, recvbuf, sendcount, sendtype, root, rank, comm, left, right);
+	
+	
+	if (rank != 0)
+	{
+		if	(recvbuf != NULL)
+		{
+			free(recvbuf);
+		}
+	}
+	
 	
 	return MPI_SUCCESS;
 }
