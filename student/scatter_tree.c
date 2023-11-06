@@ -27,11 +27,15 @@ void MSTScatter(void *sendbuf, void*recvbuf, int count, MPI_Datatype datatype, i
 		{
 			//printf("root %d send to %d\n", root, dest);
 			int* buffer_start = (int*)sendbuf + (mid_pos + 1)*count;
-			MPI_Send(buffer_start, size, datatype, dest, 0, comm);
+			MPI_Request request;
+			MPI_Isend(buffer_start, size, datatype, dest, 0, comm, &request);
+			//MPI_Send(buffer_start, size, datatype, dest, 0, comm);
 			if ((mid - left) == 0)
 			{
 				memcpy(recvbuf, (int*)sendbuf + (left_pos)*count, count*sizeof(int));
 			}
+
+			MPI_Wait(&request, MPI_STATUS_IGNORE);
 
 		} else if (rank == dest)
 		{
@@ -61,15 +65,16 @@ void MSTScatter(void *sendbuf, void*recvbuf, int count, MPI_Datatype datatype, i
 		{
 			//printf("root %d send to %d with offset %d\n", root, dest, offset);
 			int* buffer_start = (int*)sendbuf + (left_pos + offset)*count;
-			//MPI_Request request;
-			//MPI_Isend(buffer_start, size, datatype, dest, 0, comm, &request);
-			MPI_Send(buffer_start, size, datatype, dest, 0, comm);
+			MPI_Request request;
+			MPI_Isend(buffer_start, size, datatype, dest, 0, comm, &request);
+			//MPI_Send(buffer_start, size, datatype, dest, 0, comm);
 			if ((right - mid) == 1)
 			{
 				memcpy(recvbuf, (int*)sendbuf + (mid_pos + 1 + offset)*count, count*sizeof(int));
-				//MPI_Wait(&request, MPI_STATUS_IGNORE);
+				
 			} 
 			offset += mid - left + 1;
+			MPI_Wait(&request, MPI_STATUS_IGNORE);
 
 		} else if (rank == dest)
 		{
@@ -94,15 +99,31 @@ void MSTScatter(void *sendbuf, void*recvbuf, int count, MPI_Datatype datatype, i
 
 	if (rank <= mid && root <= mid)
 	{
+		if	(left == mid)
+		{
+			return;
+		}
 		MSTScatter(sendbuf, recvbuf, count, datatype, root, rank, comm, left, mid, offset);
 	} else if (rank <= mid && root > mid)
 	{
+		if	(left == mid)
+		{
+			return;
+		}
 		MSTScatter(sendbuf, recvbuf, count, datatype, dest, rank, comm, left, mid, offset);
 	} else if (rank > mid && root <= mid)
 	{
+		if	(mid + 1 == right)
+		{
+			return;
+		}
 		MSTScatter(sendbuf, recvbuf, count, datatype, dest, rank, comm, mid + 1, right, offset);
 	} else if (rank > mid && root > mid)
 	{
+		if	(mid + 1 == right)
+		{
+			return;
+		}
 		MSTScatter(sendbuf, recvbuf, count, datatype, root, rank, comm, mid + 1, right, offset);
 	}
 	
