@@ -20,7 +20,7 @@ int GT_Bcast(void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm 
 		mid = floor((left + right) / 2);
 
 		dest = (root <= mid) ? right : left;
-		
+		MPI_Request request;
 		if (rank == root)
 		{
 			// send buffer to destination node
@@ -28,7 +28,9 @@ int GT_Bcast(void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm 
 		} else if (rank == dest)
 		{
 			// receive buffer from root
-			MPI_Recv(buffer, count, datatype, root, 0, comm, MPI_STATUS_IGNORE);
+			
+			//MPI_Recv(buffer, count, datatype, root, 0, comm, MPI_STATUS_IGNORE);
+			MPI_Irecv(buffer, count, datatype, root, 0, comm, &request);
 		}
 
 		if (rank <= mid && root <= mid)
@@ -45,6 +47,11 @@ int GT_Bcast(void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm 
 		} else if (rank > mid && root > mid)
 		{
 			left = mid + 1;
+		}
+
+		if (rank == dest)
+		{
+			MPI_Wait(&request, MPI_STATUS_IGNORE);
 		}
 	}
 	return MPI_SUCCESS;
