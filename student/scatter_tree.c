@@ -6,10 +6,7 @@
 #include <stdlib.h>
 
 void MSTScatter(void *sendbuf, void*recvbuf, int count, MPI_Datatype datatype, int root, int rank, MPI_Comm comm, int left, int right, int offset){
-	if (left == right)
-	{
-		return;
-	}
+	
 
 	int mid = floor((left + right) / 2);
 	int dest = (root <= mid) ? right : left;
@@ -29,12 +26,10 @@ void MSTScatter(void *sendbuf, void*recvbuf, int count, MPI_Datatype datatype, i
 			int* buffer_start = (int*)sendbuf + (mid_pos + 1)*count;
 			MPI_Request request;
 			MPI_Isend(buffer_start, size, datatype, dest, 0, comm, &request);
-			//MPI_Send(buffer_start, size, datatype, dest, 0, comm);
 			if ((mid - left) == 0)
 			{
 				memcpy(recvbuf, (int*)sendbuf + (left_pos)*count, count*sizeof(int));
 			}
-
 			MPI_Wait(&request, MPI_STATUS_IGNORE);
 
 		} else if (rank == dest)
@@ -47,12 +42,6 @@ void MSTScatter(void *sendbuf, void*recvbuf, int count, MPI_Datatype datatype, i
 			{
 				sendbuf = malloc(size * sizeof(int));
 				MPI_Recv(sendbuf, size, datatype, root, 0, comm, MPI_STATUS_IGNORE);
-				/* printf("rank: %d, recvbuf: ", rank);
-				for (size_t i = 0; i < size; i++)
-				{
-					printf("%d ",((int*)sendbuf)[i]);
-				}
-				printf("\n"); */
 			}
 		}
 		
@@ -67,11 +56,9 @@ void MSTScatter(void *sendbuf, void*recvbuf, int count, MPI_Datatype datatype, i
 			int* buffer_start = (int*)sendbuf + (left_pos + offset)*count;
 			MPI_Request request;
 			MPI_Isend(buffer_start, size, datatype, dest, 0, comm, &request);
-			//MPI_Send(buffer_start, size, datatype, dest, 0, comm);
 			if ((right - mid) == 1)
 			{
-				memcpy(recvbuf, (int*)sendbuf + (mid_pos + 1 + offset)*count, count*sizeof(int));
-				
+				memcpy(recvbuf, (int*)sendbuf + (mid_pos + 1 + offset)*count, count*sizeof(int));				
 			} 
 			offset += mid - left + 1;
 			MPI_Wait(&request, MPI_STATUS_IGNORE);
@@ -85,14 +72,7 @@ void MSTScatter(void *sendbuf, void*recvbuf, int count, MPI_Datatype datatype, i
 			} else
 			{
 				sendbuf = malloc(size * sizeof(int));
-				MPI_Recv(sendbuf, size, datatype, root, 0, comm, MPI_STATUS_IGNORE);
-				/* printf("rank: %d, recvbuf: ", rank);
-				for (size_t i = 0; i < size; i++)
-				{
-					printf("%d ",((int*)sendbuf)[i]);
-				}
-				printf("\n"); */
-	
+				MPI_Recv(sendbuf, size, datatype, root, 0, comm, MPI_STATUS_IGNORE);	
 			}
 		}
 	}
