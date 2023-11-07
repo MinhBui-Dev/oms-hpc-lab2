@@ -24,13 +24,14 @@ void MSTScatter(void *sendbuf, void*recvbuf, int count, MPI_Datatype datatype, i
 		{
 			//printf("root %d send to %d\n", root, dest);
 			int* buffer_start = (int*)sendbuf + (mid_pos + 1)*count;
-			MPI_Request request;
-			MPI_Isend(buffer_start, size, datatype, dest, 0, comm, &request);
+			//MPI_Request request;
+			//MPI_Isend(buffer_start, size, datatype, dest, 0, comm, &request);
+			MPI_Send(buffer_start, size, datatype, dest, 0, comm);
 			if ((mid - left) == 0)
 			{
 				memcpy(recvbuf, (int*)sendbuf + (left_pos)*count, count*sizeof(int));
 			}
-			MPI_Wait(&request, MPI_STATUS_IGNORE);
+			//MPI_Wait(&request, MPI_STATUS_IGNORE);
 
 		} else if (rank == dest)
 		{
@@ -54,14 +55,15 @@ void MSTScatter(void *sendbuf, void*recvbuf, int count, MPI_Datatype datatype, i
 		{
 			//printf("root %d send to %d with offset %d\n", root, dest, offset);
 			int* buffer_start = (int*)sendbuf + (left_pos + offset)*count;
-			MPI_Request request;
-			MPI_Isend(buffer_start, size, datatype, dest, 0, comm, &request);
+			//MPI_Request request;
+			//MPI_Isend(buffer_start, size, datatype, dest, 0, comm, &request);
+			MPI_Send(buffer_start, size, datatype, dest, 0, comm);
 			if ((right - mid) == 1)
 			{
 				memcpy(recvbuf, (int*)sendbuf + (mid_pos + 1 + offset)*count, count*sizeof(int));				
 			} 
 			offset += mid - left + 1;
-			MPI_Wait(&request, MPI_STATUS_IGNORE);
+			//MPI_Wait(&request, MPI_STATUS_IGNORE);
 
 		} else if (rank == dest)
 		{
@@ -124,16 +126,99 @@ int GT_Scatter(void *sendbuf, int sendcount, MPI_Datatype sendtype,
 
 	int left = 0;
 	int right = size - 1;
+	int offset = 0;
 
-	MSTScatter(sendbuf, recvbuf, sendcount, sendtype, root, rank, comm, left, right, 0);
-
-	/* printf("rank: %d, recvbuf: ", rank);
-	for (size_t i = 0; i < recvcount; i++)
+	while (left < right)
 	{
-		printf("%d ",((int*)recvbuf)[i]);
+		int mid = floor((left + right) / 2);
+		int dest = (root <= mid) ? right : left;
+
+		int left_pos = 0;
+		int mid_pos = mid - left;
+		
+		if (root <= mid)
+		{
+			// buffer elements from mid + 1 to right
+			int size = (right - mid)*sendcount;
+			
+			if (rank == root)
+			{
+				//printf("root %d send to %d\n", root, dest);
+				int* buffer_start = (int*)sendbuf + (mid_pos + 1)*sendcount;
+				//MPI_Request request;
+				//MPI_Isend(buffer_start, size, datatype, dest, 0, comm, &request);
+				MPI_Send(buffer_start, size, sendtype, dest, 0, comm);
+				if ((mid - left) == 0)
+				{
+					memcpy(recvbuf, (int*)sendbuf + (left_pos)*sendcount, sendcount*sizeof(int));
+				}
+				//MPI_Wait(&request, MPI_STATUS_IGNORE);
+
+			} else if (rank == dest)
+			{
+				// address of elements from mid + 1 to right
+				if (size == sendcount)
+				{
+					MPI_Recv(recvbuf, size, sendtype, root, 0, comm, MPI_STATUS_IGNORE);
+				} else
+				{
+					sendbuf = malloc(size * sizeof(int));
+					MPI_Recv(sendbuf, size, sendtype, root, 0, comm, MPI_STATUS_IGNORE);
+				}
+			}
+		
+		} else 
+		{
+			// send buffer elements from left to mid
+			int size = (mid - left + 1)*sendcount;
+			
+			if (rank == root)
+			{
+				//printf("root %d send to %d with offset %d\n", root, dest, offset);
+				int* buffer_start = (int*)sendbuf + (left_pos + offset)*sendcount;
+				//MPI_Request request;
+				//MPI_Isend(buffer_start, size, datatype, dest, 0, comm, &request);
+				MPI_Send(buffer_start, size, sendtype, dest, 0, comm);
+				if ((right - mid) == 1)
+				{
+					memcpy(recvbuf, (int*)sendbuf + (mid_pos + 1 + offset)*sendcount, sendcount*sizeof(int));				
+				} 
+				offset += mid - left + 1;
+				//MPI_Wait(&request, MPI_STATUS_IGNORE);
+
+			} else if (rank == dest)
+			{
+				// receive buffer elements from left to mid
+				if (size == sendcount)
+				{
+					MPI_Recv(recvbuf, size, sendtype, root, 0, comm, MPI_STATUS_IGNORE);
+				} else
+				{
+					sendbuf = malloc(size * sizeof(int));
+					MPI_Recv(sendbuf, size, sendtype, root, 0, comm, MPI_STATUS_IGNORE);	
+				}
+			}
+		}
+		if (rank <= mid && root <= mid)
+		{
+			right = mid;
+		} else if (rank <= mid && root > mid)
+		{
+			right = mid;
+			root = dest;
+		} else if (rank > mid && root <= mid)
+		{
+			left = mid + 1;
+			root = dest;
+		} else if (rank > mid && root > mid)
+		{
+			left = mid + 1;
+		}
+		
 	}
-	printf("\n"); */
 	
 
+	//MSTScatter(sendbuf, recvbuf, sendcount, sendtype, root, rank, comm, left, right, 0);
+	
 	return MPI_SUCCESS;
 }
