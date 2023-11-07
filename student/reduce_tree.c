@@ -9,10 +9,6 @@
 void MSTReduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype,
 			MPI_Op op, int root, MPI_Comm comm, int left, int right, int rank)
 {
-   if (left == right)
-   {
-      return;
-   }
    int mid = floor((left + right) / 2);
    int src;
    if (root <= mid)
@@ -24,16 +20,28 @@ void MSTReduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype,
 
    if (rank <= mid && root <= mid)
 	{
-		MSTReduce(sendbuf, recvbuf, count, datatype, op, root, comm, left, mid, rank);
+      if (left != mid)
+      {
+         MSTReduce(sendbuf, recvbuf, count, datatype, op, root, comm, left, mid, rank);
+      }
 	} else if (rank <= mid && root > mid)
 	{
-		MSTReduce(sendbuf, recvbuf, count, datatype, op, src, comm, left, mid, rank);
+      if (left != mid)
+      {
+         MSTReduce(sendbuf, recvbuf, count, datatype, op, src, comm, left, mid, rank);
+      }
 	} else if (rank > mid && root <= mid)
 	{
-		MSTReduce(sendbuf, recvbuf, count, datatype, op, src, comm, mid + 1, right, rank);
+      if (mid + 1 != right)
+      {
+         MSTReduce(sendbuf, recvbuf, count, datatype, op, src, comm, mid + 1, right, rank);
+      }
 	} else if (rank > mid && root > mid)
 	{
-		MSTReduce(sendbuf, recvbuf, count, datatype, op, root, comm, mid + 1, right, rank);
+      if (mid + 1 != right)
+      {
+         MSTReduce(sendbuf, recvbuf, count, datatype, op, root, comm, mid + 1, right, rank);
+      }
 	}
 
    if (rank == src)
@@ -41,12 +49,10 @@ void MSTReduce(void *sendbuf, void *recvbuf, int count, MPI_Datatype datatype,
       MPI_Send(sendbuf, count, datatype, root, 0, comm);
    } else if (rank == root)
    {
-      
       if (recvbuf == NULL)
       {
          recvbuf = malloc(count * sizeof(int));
       }
-      
       MPI_Recv(recvbuf, count, datatype, src, 0, comm, MPI_STATUS_IGNORE);
       MPI_Reduce_local(recvbuf, sendbuf, count, datatype, op);
    }
