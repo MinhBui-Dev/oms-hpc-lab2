@@ -60,12 +60,8 @@ int GT_Bcast(void *buffer, int count, MPI_Datatype datatype, int root, MPI_Comm 
 	while (left < right)
 	{
 		mid = floor((left + right) / 2);
-		if (root <= mid)
-		{
-			dest = right;
-		} else {
-			dest = left;
-		}
+
+		dest = (root <= mid) ? right : left;
 		
 		if (rank == root)
 		{
