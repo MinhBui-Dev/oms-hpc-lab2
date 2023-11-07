@@ -6,26 +6,40 @@
 #include <stdio.h>
 
 void MSTGather(void *sendbuf, void*recvbuf, int count, MPI_Datatype datatype, int root, int rank, MPI_Comm comm, int left, int right){
-	if (left == right)
-	{
-		return;
-	}
+	
 
 	int mid = floor((left + right) / 2);
 	int src = (root <= mid) ? right : left;
 
 	if (rank <= mid && root <= mid)
 	{
-		MSTGather(sendbuf, recvbuf, count, datatype, root, rank, comm, left, mid);
+		if (left != mid)
+		{
+			MSTGather(sendbuf, recvbuf, count, datatype, root, rank, comm, left, mid);
+		}
+		
+		
 	} else if (rank <= mid && root > mid)
 	{
-		MSTGather(sendbuf, recvbuf, count, datatype, src, rank, comm, left, mid);
+		if (left != mid)
+		{
+			MSTGather(sendbuf, recvbuf, count, datatype, src, rank, comm, left, mid);
+		}
+		
 	} else if (rank > mid && root <= mid)
 	{
-		MSTGather(sendbuf, recvbuf, count, datatype, src, rank, comm, mid + 1, right);
+		if (mid + 1 != right)
+		{
+			MSTGather(sendbuf, recvbuf, count, datatype, src, rank, comm, mid + 1, right);
+		}
+		
 	} else if (rank > mid && root > mid)
 	{
-		MSTGather(sendbuf, recvbuf, count, datatype, root, rank, comm, mid + 1, right);
+		if (mid + 1 != right)
+		{
+			MSTGather(sendbuf, recvbuf, count, datatype, root, rank, comm, mid + 1, right);
+		}
+		
 	}
 	
 
@@ -45,8 +59,8 @@ void MSTGather(void *sendbuf, void*recvbuf, int count, MPI_Datatype datatype, in
 			
 		} else if (rank == root)
 		{
-			int total_size;
-			MPI_Comm_size(comm, &total_size);
+			//int total_size;
+			//MPI_Comm_size(comm, &total_size);
 			/* if (size == count)
 			{
 				//recvbuf = malloc(total_size * count * sizeof(int));
@@ -70,8 +84,8 @@ void MSTGather(void *sendbuf, void*recvbuf, int count, MPI_Datatype datatype, in
 			MPI_Send(buffer_start, size, datatype, root, 0, comm);
 		} else if (rank == root)
 		{
-			int total_size;
-			MPI_Comm_size(comm, &total_size);
+			//int total_size;
+			//MPI_Comm_size(comm, &total_size);
 			/* if (size == count)
 			{
 				
